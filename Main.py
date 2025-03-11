@@ -8,7 +8,7 @@ IMAGES_FOLDER = 'assets'
 CONFIDENCE = 0.7  # Reduzida para melhorar a detecção
 SEARCH_REGION = (0, 0, 1920, 1080)  # Ajuste conforme sua tela (x, y, largura, altura)
 REFRESH_INTERVAL = 10  # Segundos entre atualizações (refresh da página)
-
+d
 def refresh_page():
     """Atualiza a página pressionando F5 com delays adequados"""
     pyautogui.press('f5')

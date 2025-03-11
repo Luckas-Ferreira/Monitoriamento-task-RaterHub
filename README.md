@@ -1,4 +1,4 @@
-<h1 align="center"> Monitoramento de tasks Rater hub </h1>
+<h1 align="center"> Monitoramento de tasks Rater hub - 1.0.0 </h1>
 
 
 <p align="center">O objetivo principal é torna o seu tempo mais precioso, deixando o computador realizar essa tarefa repetitiva de ficar atualizando a página forma automática.</p>

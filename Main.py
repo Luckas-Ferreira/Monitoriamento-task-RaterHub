@@ -1,98 +1,144 @@
 import pyautogui
 import time
 import os
-import keyboard  # Certifique-se de instalar o módulo: pip install keyboard
+import keyboard  # pip install keyboard
 
 # Configurações globais
 IMAGES_FOLDER = 'assets'
-CONFIDENCE = 0.7  # Reduzida para melhorar a detecção
-SEARCH_REGION = (0, 0, 1920, 1080)  # Ajuste conforme sua tela (x, y, largura, altura)
-REFRESH_INTERVAL = 10  # Segundos entre atualizações (refresh da página)
+CONFIDENCE = 0.7  # Ajuste conforme necessário (0.7 pode ser mais confiável)
+SEARCH_REGION = (0, 0, 1920, 1080)  # Região da tela para busca (ajuste se necessário)
+REFRESH_INTERVAL = 15  # Segundos entre atualizações se nada for encontrado
+WAIT_AFTER_CLICK = 4 # Segundos para esperar após clicar em task.png
+
+# --- Funções Auxiliares (mantidas do seu código original) ---
 
 def refresh_page():
-    """Atualiza a página pressionando F5 com delays adequados"""
+    """Atualiza a página pressionando F5 com delay."""
+    print("Atualizando a página (F5)...")
     pyautogui.press('f5')
-    time.sleep(3)  # Tempo para a página recarregar
+    time.sleep(3)  # Tempo para carregar a página após F5
 
 def play_music():
-    """Toca a música de alerta"""
-    try:
-        os.startfile(os.path.join(IMAGES_FOLDER, 'music.mp3'))
-    except Exception as e:
-        print(f"Erro ao tocar música: {e}")
+    """Toca a música de alerta."""
+    music_path = os.path.join(IMAGES_FOLDER, 'music.mp3')
+    print(f"Tentando tocar a música: {music_path}")
+    if os.path.exists(music_path):
+        try:
+            os.startfile(music_path)
+            print("Música iniciada.")
+        except Exception as e:
+            print(f"Erro ao tocar música: {e}")
+    else:
+        print(f"Erro: Arquivo de música não encontrado em {music_path}")
 
-def find_image(image_name):
-    """Procura imagem na tela com tratamento de erros"""
+def find_image(image_name, confidence_level=CONFIDENCE):
+    """Procura a imagem na tela com a confiança especificada."""
+    image_path = os.path.join(IMAGES_FOLDER, image_name)
+    # print(f"Procurando por {image_path} com confiança {confidence_level}") # Descomente para debug
+    if not os.path.exists(image_path):
+        print(f"Erro: Arquivo de imagem não encontrado: {image_path}")
+        return None
     try:
-        return pyautogui.locateCenterOnScreen(
-            os.path.join(IMAGES_FOLDER, image_name),
-            confidence=CONFIDENCE,
+        location = pyautogui.locateCenterOnScreen(
+            image_path,
+            confidence=confidence_level,
             region=SEARCH_REGION
         )
+        # if location:
+        #     print(f"Imagem '{image_name}' encontrada em {location}") # Descomente para debug
+        # else:
+        #     print(f"Imagem '{image_name}' não encontrada.") # Descomente para debug
+        return location
     except Exception as e:
-        print(f"Erro ao procurar {image_name}: {e}")
+        print(f"Erro durante a busca da imagem {image_name}: {e}")
         return None
 
+# --- Função Principal ---
 def main():
-    # Exibe alerta e espera que o usuário clique em OK
-    pyautogui.alert('Agora o computador está sendo controlado')
-    
-    # Após fechar o alerta, realiza o alt+tab para mudar a janela
-    pyautogui.hotkey('alt', 'tab')
-    time.sleep(2)  # Tempo para garantir a mudança de janela
+    pyautogui.alert('O script de monitoramento vai começar. Pressione ESC a qualquer momento para parar.')
+
+    # Talvez não precise do Alt+Tab se a janela já estiver ativa
+    # print("Alternando janela (Alt+Tab)...")
+    # pyautogui.hotkey('alt', 'tab')
+    # time.sleep(2)
 
     last_refresh = time.time()
+    print("Iniciando monitoramento...")
 
     while True:
-        # Verifica se a tecla ESC foi pressionada para interromper a execução
+        # --- Verificação da Tecla ESC ---
         if keyboard.is_pressed('esc'):
-            resposta = pyautogui.confirm("Você deseja parar a execução?", buttons=["Sim", "Não"])
-            if resposta == "Sim":
-                print("Execução parada pelo usuário.")
-                break
-        
-        # Busca a imagem task.png em tempo real
-        target = find_image('task.png')
-
-        if target:
-            print("Imagem 'task.png' encontrada! Clicando...")
-            pyautogui.click(target)
-            time.sleep(3)  # Tempo para o efeito do clique
-
-            # Após o clique, verifica em tempo real se a imagem no_tasks.png desapareceu
-            start_check = time.time()
-            no_tasks_disappeared = False
-            while time.time() - start_check < 5:
-                if keyboard.is_pressed('esc'):
-                    resposta = pyautogui.confirm("Você deseja parar a execução?", buttons=["Sim", "Não"])
-                    if resposta == "Sim":
-                        print("Execução parada pelo usuário.")
-                        return
-                # Se não encontrar no_tasks.png, considera que ela sumiu
-                if not find_image('no_tasks.png'):
-                    no_tasks_disappeared = True
+            try:
+                # Use um timeout para evitar bloqueio se o pyautogui tiver problemas
+                resposta = pyautogui.confirm("Você deseja parar a execução?", buttons=["Sim", "Não"], timeout=5000) # Timeout de 5 segundos
+                if resposta == "Sim" or resposta is None: # Considera timeout como Sim para segurança
+                    print("Execução parada pelo usuário.")
                     break
-                time.sleep(0.5)  # Checa a cada 0.5 segundo
+            except pyautogui.TimeoutException:
+                print("Confirmação expirou. Parando a execução.")
+                break
+            except Exception as e:
+                 print(f"Erro ao exibir confirmação: {e}. Parando a execução.")
+                 break
+            # Pequena pausa para evitar múltiplas confirmações se ESC for mantido pressionado
+            time.sleep(0.5)
+            continue # Volta ao início do loop após tratar ESC
 
-            if no_tasks_disappeared:
-                print("A imagem 'no_tasks.png' sumiu. Tocando música...")
-                play_music()
-                break  # Encerra a execução
-            else:
-                print("A imagem 'no_tasks.png' ainda está presente. Atualizando página e continuando o ciclo...")
-                refresh_page()
-                last_refresh = time.time()
-                continue  # Retorna ao início do loop para nova verificação
+        # --- Lógica Principal ---
+        print(f"Procurando por 'task.png'...")
+        task_location = find_image('task.png') # Tenta encontrar task.png
+
+        if task_location:
+            print(f"Imagem 'task.png' encontrada em {task_location}! Clicando...")
+            try:
+                pyautogui.click(task_location)
+                print(f"Clique realizado. Aguardando {WAIT_AFTER_CLICK} segundos...")
+                time.sleep(WAIT_AFTER_CLICK) # Espera os 4 segundos definidos
+
+                print("Verificando se 'no_tasks.png' está presente após o clique...")
+                no_task_location = find_image('no_tasks.png') # Verifica se no_tasks.png existe
+
+                if no_task_location:
+                    # Se no_tasks.png AINDA existe, significa que a ação não foi concluída como esperado
+                    print("'no_tasks.png' ainda está presente. Voltando ao monitoramento...")
+                    # Opcional: Forçar refresh aqui pode ajudar em alguns casos
+                    # refresh_page()
+                    # last_refresh = time.time()
+                    continue # Volta para o início do loop while para procurar task.png novamente
+                else:
+                    # Se no_tasks.png NÃO existe, a tarefa foi processada (ou algo mudou)
+                    print("'no_tasks.png' não foi encontrada. Tocando música e encerrando.")
+                    play_music()
+                    break # Encerra o script conforme solicitado
+
+            except Exception as e:
+                print(f"Ocorreu um erro após encontrar e clicar em 'task.png': {e}")
+                print("Continuando o monitoramento...")
+                # Decide o que fazer em caso de erro, talvez apenas continuar?
+                time.sleep(2) # Pausa antes de tentar novamente
+                continue
 
         else:
-            # Se 10 segundos se passaram desde a última atualização, atualiza a página
-            if time.time() - last_refresh >= REFRESH_INTERVAL:
-                print("Nenhuma imagem 'task.png' encontrada. Atualizando página...")
+            # Se task.png NÃO foi encontrada
+            print("'task.png' não encontrada.")
+            current_time = time.time()
+            if current_time - last_refresh >= REFRESH_INTERVAL:
+                print("Tempo limite desde a última atualização atingido.")
                 refresh_page()
-                last_refresh = time.time()
+                last_refresh = current_time # Atualiza o tempo da última atualização
+            else:
+                # Espera um pouco antes da próxima verificação para não sobrecarregar a CPU
+                wait_time = 1
+                print(f"Aguardando {wait_time} segundo(s) antes da próxima verificação...")
+                time.sleep(wait_time)
 
-        # Pausa breve para evitar sobrecarga da CPU
-        time.sleep(0.1)
+    print("Script finalizado.")
 
+# --- Execução ---
 if __name__ == "__main__":
-    main()
+    # Garante que a pasta 'assets' existe
+    if not os.path.exists(IMAGES_FOLDER):
+        print(f"ERRO: A pasta '{IMAGES_FOLDER}' não foi encontrada.")
+        print("Certifique-se de que a pasta 'assets' existe no mesmo diretório do script e contém as imagens 'task.png', 'no_tasks.png' e 'music.mp3'.")
+    else:
+        main()
